@@ -15,12 +15,16 @@ class Block {
 public:
     float x, y, w, h;
     BlockType type;
-    SDL_Color color;
     std::string text;
+
+    Block* next = nullptr;
+    Block* prev = nullptr;
 
     Block(BlockType t, std::string txt, float startX, float startY);
 
     void render(SDL_Renderer* renderer, TTF_Font* font);
+
+    void updatePosition(float newX, float newY);
 };
 
 #endif

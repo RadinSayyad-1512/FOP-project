@@ -46,6 +46,11 @@ int main(int argc, char* argv[]) {
                             mouseY >= myBlocks[i].y && mouseY <= (myBlocks[i].y + myBlocks[i].h)) {
 
                             draggedBlock = &myBlocks[i];
+
+                            if (draggedBlock->prev != nullptr) {
+                                draggedBlock->prev->next = nullptr;
+                                draggedBlock->prev = nullptr;
+                            }
                             offsetX = mouseX - (int)draggedBlock->x;
                             offsetY = mouseY - (int)draggedBlock->y;
                             break;
@@ -54,12 +59,42 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            if (event.type == SDL_MOUSEBUTTONUP)
-                draggedBlock = nullptr;
+            if (event.type == SDL_MOUSEBUTTONUP) {
+               if (draggedBlock != nullptr) {
+                   bool snapped = false;
 
+                   for (auto& otherBlock : myBlocks) {
+                       if (draggedBlock == &otherBlock)
+                           continue;
+
+                       float snapTpBottomX = abs(draggedBlock->x - otherBlock.x);
+                       float snapToBottomY = abs(draggedBlock->y - (otherBlock.y + otherBlock.h));
+
+                       if (snapTpBottomX < 25 && snapToBottomY < 25 && otherBlock.next == nullptr) {
+                           otherBlock.next = draggedBlock;
+                           draggedBlock->prev = &otherBlock;
+                           draggedBlock->updatePosition(otherBlock.x, otherBlock.y + otherBlock.h);
+                           snapped = true;
+                           break;
+                       }
+
+                       float snapToTopX = abs(draggedBlock->x - otherBlock.x);
+                       float snapToTopY = abs((draggedBlock->y + draggedBlock->h) - otherBlock.y);
+
+                       if (snapToTopX < 25 && snapToTopY < 25 && otherBlock.prev == nullptr) {
+                           draggedBlock->next = &otherBlock;
+                           otherBlock.prev = draggedBlock;
+
+                           draggedBlock->updatePosition(otherBlock.x, otherBlock.y - draggedBlock->h);
+                           snapped = true;
+                           break;
+                       }
+                   }
+               }
+                draggedBlock = nullptr;
+            }
             if (event.type == SDL_MOUSEMOTION && draggedBlock != nullptr) {
-                draggedBlock->x = (float)(event.motion.x - offsetX);
-                draggedBlock->y = (float)(event.motion.y - offsetY);
+                draggedBlock->updatePosition(event.motion.x - offsetX, event.motion.y - offsetY);
             }
         }
 
