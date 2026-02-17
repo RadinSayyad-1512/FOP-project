@@ -54,3 +54,11 @@ void Block::render(SDL_Renderer* renderer, TTF_Font* font) {
         }
     }
 }
+
+void Block::updatePosition(float newX, float newY) {
+    this->x = newX;
+    this->y = newY;
+
+    if (this->next != nullptr)
+        this->next->updatePosition(newX, newY + this->h);
+}
