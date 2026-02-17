@@ -2,8 +2,10 @@
 #define FOP_PROJECT_BLOCK_H
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <vector>
 #include <string>
-// #include <bits/stdc++.h>
+#include <bits/stdc++.h>
 
 enum class BlockType {
     Motion, Looks, Sound, Events, Control, Sensing, Operators, Variables
@@ -18,7 +20,7 @@ public:
 
     Block(BlockType t, std::string txt, float startX, float startY);
 
-    void render(SDL_Renderer* renderer);
+    void render(SDL_Renderer* renderer, TTF_Font* font);
 };
 
 #endif

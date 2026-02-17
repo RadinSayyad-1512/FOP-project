@@ -1,14 +1,23 @@
 #define SDL_MAIN_HANDLED
-#include <SDL2/SDL.h>
-#include <vector>
 #include "../include/Block.h"
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
+
+    if (TTF_Init() == -1) {
+        std::cerr << "TTF_Init Error: " << TTF_GetError() << std::endl;
+        return -1;
+    }
+
     SDL_Window* window = SDL_CreateWindow("FOP Project", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                         1024, 768, SDL_WINDOW_SHOWN);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+
+    TTF_Font* myFont = TTF_OpenFont("arial.ttf", 16);
+    if (!myFont) {
+        std::cerr << "Failed to load font! Error: " << TTF_GetError() << std::endl;
+    }
 
     std::vector<Block> myBlocks;
     myBlocks.push_back(Block(BlockType::Events, "When Flag Clicked", 40, 60));
@@ -65,11 +74,15 @@ int main(int argc, char* argv[]) {
         SDL_RenderDrawLine(renderer, 250, 0, 250, 768);
 
         for (auto& block : myBlocks) {
-            block.render(renderer);
+            block.render(renderer, myFont);
         }
 
         SDL_RenderPresent(renderer);
     }
+
+    if (myFont)
+        TTF_CloseFont(myFont);
+    TTF_Quit();
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
