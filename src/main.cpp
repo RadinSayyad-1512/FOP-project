@@ -11,14 +11,13 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 
     std::vector<Block> myBlocks;
-    myBlocks.push_back(Block(BlockType::Events, "Start", 100, 100));
-    myBlocks.push_back(Block(BlockType::Motion, "Move", 100, 160));
-    // myBlocks.push_back(Block(BlockType::Looks, "Say Hello", 40, 170));
-    // myBlocks.push_back(Block(BlockType::Control, "Wait 1 Sec", 40, 230));
+    myBlocks.push_back(Block(BlockType::Events, "When Flag Clicked", 40, 60));
+    myBlocks.push_back(Block(BlockType::Motion, "Move 10 Steps", 40, 120));
+    myBlocks.push_back(Block(BlockType::Looks, "Say Hello", 40, 180));
+    myBlocks.push_back(Block(BlockType::Control, "Wait 1 Sec", 40, 240));
 
     Block* draggedBlock = nullptr;
-    float offsetX = 0;
-    float offsetY = 0;
+    int offsetX = 0, offsetY = 0;
 
     bool isRunning = true;
     SDL_Event event;
@@ -33,50 +32,37 @@ int main(int argc, char* argv[]) {
                     int mouseX = event.button.x;
                     int mouseY = event.button.y;
 
-                    std::cout << "Click at" << mouseX << "," << mouseY << std::endl;
+                    for (int i = myBlocks.size() - 1 ; i >= 0; i--) {
+                        if (mouseX >= myBlocks[i].x && mouseX <= (myBlocks[i].x + myBlocks[i].w) &&
+                            mouseY >= myBlocks[i].y && mouseY <= (myBlocks[i].y + myBlocks[i].h)) {
 
-                    // for (auto it = myBlocks.rbegin(); it != myBlocks.rend(); it++) {
-                    // Block& block = *it;
-                    for (auto& block : myBlocks) {
-                        if (mouseX >= block.x && mouseX <= (block.x + block.w) &&
-                            mouseY >= block.y && mouseY <= (block.y + block.h)) {
-                            draggedBlock = &block;
-                            offsetX = mouseX - (int)block.x;
-                            offsetY = mouseY - (int)block.y;
-
-                            std::cout << "Block Picked Up!" << std::endl;
+                            draggedBlock = &myBlocks[i];
+                            offsetX = mouseX - (int)draggedBlock->x;
+                            offsetY = mouseY - (int)draggedBlock->y;
                             break;
                         }
                     }
                 }
             }
 
-            if (event.type == SDL_MOUSEBUTTONUP) {
-                // if (event.button.button == SDL_BUTTON_LEFT) {
-                //     draggedBlock = nullptr;
-                // }
-                if (draggedBlock)
-                    std::cout << "Block Dropped!" << std::endl;
+            if (event.type == SDL_MOUSEBUTTONUP)
                 draggedBlock = nullptr;
-            }
 
-            if (event.type == SDL_MOUSEMOTION) {
-                if (draggedBlock != nullptr) {
-                    draggedBlock->x = (float)(event.motion.x - offsetX);
-                    draggedBlock->y = (float)(event.motion.y - offsetY);
-                }
+            if (event.type == SDL_MOUSEMOTION && draggedBlock != nullptr) {
+                draggedBlock->x = (float)(event.motion.x - offsetX);
+                draggedBlock->y = (float)(event.motion.y - offsetY);
             }
         }
 
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
-        // SDL_Rect sidebar = {0, 0, 250, 768};
-        // SDL_SetRenderDrawColor(renderer, 240, 240, 240, 255);
-        // SDL_RenderFillRect(renderer, &sidebar);
-        //
-        // SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
-        // SDL_RenderDrawLine(renderer, 250, 0, 250, 768);
+        SDL_Rect sidebar = {0, 0, 250, 768};
+        SDL_SetRenderDrawColor(renderer, 242, 242, 242, 255);
+        SDL_RenderFillRect(renderer, &sidebar);
+
+        SDL_SetRenderDrawColor(renderer, 210, 210, 210, 255);
+        SDL_RenderDrawLine(renderer, 250, 0, 250, 768);
 
         for (auto& block : myBlocks) {
             block.render(renderer);
@@ -85,8 +71,8 @@ int main(int argc, char* argv[]) {
         SDL_RenderPresent(renderer);
     }
 
-    // SDL_DestroyRenderer(renderer);
-    // SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
 }
