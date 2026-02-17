@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 4.0)
-project(FOP_Project)
+project(FOP_engine)
 
 set(CMAKE_CXX_STANDARD 20)
 
+<<<<<<< HEAD
 set(SDL2_PATH C:/MinGW/SDL2)
 
 include_directories(include)
@@ -15,3 +16,10 @@ add_executable(FOP_Project ${SOURCES})
 link_directories(&{SDL2_PATH}/lib/x64)
 
 target_link_libraries(FOP_Project SDL2main SDL2 SDL2_ttf)
+=======
+add_executable(FOP_engine main.cpp
+        blocks.h
+        Executor.h
+        Executor.cpp
+        sprites.h)
+>>>>>>> Radin/engine-&-blocks
