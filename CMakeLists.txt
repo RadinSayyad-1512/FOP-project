@@ -14,4 +14,4 @@ add_executable(FOP_Project ${SOURCES})
 
 link_directories(&{SDL2_PATH}/lib/x64)
 
-target_link_libraries(FOP_Project SDL2main SDL2)
+target_link_libraries(FOP_Project SDL2main SDL2 SDL2_ttf)
