@@ -35,12 +35,12 @@ void Block::render(SDL_Renderer* renderer) {
             SDL_SetRenderDrawColor(renderer, 255, 140, 26, 255);
             break;
         default:
-            SDL_SetRenderDrawColor(renderer, 160, 160, 160, 255);
+            SDL_SetRenderDrawColor(renderer, 180, 180, 180, 255);
             break;
     }
 
     SDL_RenderFillRect(renderer, &rect);
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 100);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 60);
     SDL_RenderDrawRect(renderer, &rect);
 }
