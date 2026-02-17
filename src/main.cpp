@@ -19,11 +19,12 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to load font! Error: " << TTF_GetError() << std::endl;
     }
 
-    std::vector<Block> myBlocks;
-    myBlocks.push_back(Block(BlockType::Events, "When Flag Clicked", 40, 60));
-    myBlocks.push_back(Block(BlockType::Motion, "Move 10 Steps", 40, 120));
-    myBlocks.push_back(Block(BlockType::Looks, "Say Hello", 40, 180));
-    myBlocks.push_back(Block(BlockType::Control, "Wait 1 Sec", 40, 240));
+    std::vector<Block*> workspaceBlocks;
+    std::vector<Block*> menuTemplates;
+    menuTemplates.push_back(new Block(BlockType::Events, "When Flag Clicked", 40, 60));
+    menuTemplates.push_back(new Block(BlockType::Motion, "Move 10 Steps", 40, 120));
+    menuTemplates.push_back(new Block(BlockType::Looks, "Say Hello", 40, 180));
+    menuTemplates.push_back(new Block(BlockType::Control, "Wait 1 Sec", 40, 240));
 
     Block* draggedBlock = nullptr;
     int offsetX = 0, offsetY = 0;
@@ -37,20 +38,33 @@ int main(int argc, char* argv[]) {
                 isRunning = false;
 
             if (event.type == SDL_MOUSEBUTTONDOWN) {
-                if (event.button.button == SDL_BUTTON_LEFT) {
-                    int mouseX = event.button.x;
-                    int mouseY = event.button.y;
+                int mouseX = event.button.x;
+                int mouseY = event.button.y;
 
-                    for (int i = myBlocks.size() - 1 ; i >= 0; i--) {
-                        if (mouseX >= myBlocks[i].x && mouseX <= (myBlocks[i].x + myBlocks[i].w) &&
-                            mouseY >= myBlocks[i].y && mouseY <= (myBlocks[i].y + myBlocks[i].h)) {
+                for (auto* templateBlock : menuTemplates) {
+                    if (mouseX >= templateBlock->x && mouseX <= templateBlock->x + templateBlock->w &&
+                        mouseY >= templateBlock->y && mouseY <= templateBlock->y + templateBlock->h) {
+                        Block* newBlock = new Block(templateBlock->type, templateBlock->text, templateBlock->x, templateBlock->y);
+                        workspaceBlocks.push_back(newBlock);
+                        draggedBlock = newBlock;
 
-                            draggedBlock = &myBlocks[i];
+                        offsetX = mouseX - (int)draggedBlock->x;
+                        offsetY = mouseY - (int)draggedBlock->y;
+                        break;
+                    }
+                }
+                if (draggedBlock == nullptr) {
+                    for (int i = workspaceBlocks.size() - 1; i >= 0; i--) {
+                        Block* b = workspaceBlocks[i];
+                        if (mouseX >= b->x && mouseX <= b->x + b->w &&
+                            mouseY >= b->y && mouseY <= b->y + b->h) {
+                            draggedBlock = b;
 
-                            if (draggedBlock->prev != nullptr) {
+                            if (draggedBlock->prev) {
                                 draggedBlock->prev->next = nullptr;
                                 draggedBlock->prev = nullptr;
                             }
+
                             offsetX = mouseX - (int)draggedBlock->x;
                             offsetY = mouseY - (int)draggedBlock->y;
                             break;
@@ -59,35 +73,50 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+
             if (event.type == SDL_MOUSEBUTTONUP) {
                if (draggedBlock != nullptr) {
-                   bool snapped = false;
+                   if (event.button.x < 250) {
+                       auto it = workspaceBlocks.begin();
+                       while (it != workspaceBlocks.end()) {
 
-                   for (auto& otherBlock : myBlocks) {
-                       if (draggedBlock == &otherBlock)
-                           continue;
-
-                       float snapTpBottomX = abs(draggedBlock->x - otherBlock.x);
-                       float snapToBottomY = abs(draggedBlock->y - (otherBlock.y + otherBlock.h));
-
-                       if (snapTpBottomX < 25 && snapToBottomY < 25 && otherBlock.next == nullptr) {
-                           otherBlock.next = draggedBlock;
-                           draggedBlock->prev = &otherBlock;
-                           draggedBlock->updatePosition(otherBlock.x, otherBlock.y + otherBlock.h);
-                           snapped = true;
-                           break;
+                           if (*it == draggedBlock) {
+                               delete *it;
+                               it = workspaceBlocks.erase(it);
+                           }
+                           else {
+                               it++;
+                           }
                        }
+                   }
+                   else{
+                       bool snapped = false;
+                       for (Block* otherBlock : workspaceBlocks) {
+                           if (draggedBlock == otherBlock)
+                               continue;
 
-                       float snapToTopX = abs(draggedBlock->x - otherBlock.x);
-                       float snapToTopY = abs((draggedBlock->y + draggedBlock->h) - otherBlock.y);
+                           float snappToBottomX = abs(draggedBlock->x - otherBlock->x);
+                           float snappToBottomY = abs(draggedBlock->y - otherBlock->y - otherBlock->h);
 
-                       if (snapToTopX < 25 && snapToTopY < 25 && otherBlock.prev == nullptr) {
-                           draggedBlock->next = &otherBlock;
-                           otherBlock.prev = draggedBlock;
+                           if (snappToBottomX < 35 && snappToBottomY < 35 && otherBlock->next == nullptr) {
+                               otherBlock->next = draggedBlock;
+                               draggedBlock->prev = otherBlock;
+                               draggedBlock->updatePosition(otherBlock->x, otherBlock->y + otherBlock->h);
+                               snapped = true;
+                               break;
+                           }
 
-                           draggedBlock->updatePosition(otherBlock.x, otherBlock.y - draggedBlock->h);
-                           snapped = true;
-                           break;
+                           float snappToTopX = abs(draggedBlock->x - otherBlock->x);
+                           float snappToTopY = abs(draggedBlock->y + draggedBlock->h - otherBlock->y);
+
+                           if (snappToTopX < 35 && snappToTopY < 35 && otherBlock->prev == nullptr) {
+                               draggedBlock->next = otherBlock;
+                               otherBlock->prev = draggedBlock;
+                               draggedBlock->updatePosition(otherBlock->x, otherBlock->y - draggedBlock->h);
+                               snapped = true;
+                               break;
+
+                           }
                        }
                    }
                }
@@ -108,8 +137,12 @@ int main(int argc, char* argv[]) {
         SDL_SetRenderDrawColor(renderer, 210, 210, 210, 255);
         SDL_RenderDrawLine(renderer, 250, 0, 250, 768);
 
-        for (auto& block : myBlocks) {
-            block.render(renderer, myFont);
+        for (auto* block : menuTemplates) {
+            block->render(renderer, myFont);
+        }
+
+        for (auto* block : workspaceBlocks) {
+            block-> render(renderer, myFont);
         }
 
         SDL_RenderPresent(renderer);
