@@ -6,6 +6,20 @@
 #include <iostream>
 #include "Block.h"
 #include "Sprites.h"
+#include <SDL2/SDL_ttf.h>
+
+
+SDL_Texture* renderText(std::string message, TTF_Font* font, SDL_Color color, SDL_Renderer* ren) {
+    SDL_Surface* surf = TTF_RenderText_Blended(font, message.c_str(), color);
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, surf);
+    SDL_FreeSurface(surf);
+    return tex;
+}
+
+
+Uint32 startTime = 0;
+
+
 
 const int SCREEN_W = 1200;
 const int SCREEN_H = 800;
@@ -94,6 +108,14 @@ int main(int argc, char* argv[]) {
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
 
+    if (TTF_Init() == -1) {
+        std::cout << "TTF_Init Error: " << TTF_GetError() << std::endl;
+    }
+    TTF_Font* font = TTF_OpenFont("arial.ttf", 24);
+    startTime = SDL_GetTicks();
+
+
+
     SDL_Texture* canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, SCREEN_W, SCREEN_H);
     SDL_SetTextureBlendMode(canvas, SDL_BLENDMODE_BLEND);
     SDL_SetRenderTarget(ren, canvas);
@@ -125,11 +147,24 @@ int main(int argc, char* argv[]) {
     SDL_Texture* tSU = IMG_LoadTexture(ren, "pen_size_up.png");
     SDL_Texture* tSD = IMG_LoadTexture(ren, "pen_size_down.png");
 
+    SDL_Texture* tSizeInc = IMG_LoadTexture(ren, "size_inc.png");
+    SDL_Texture* tSizeDec = IMG_LoadTexture(ren, "size_dec.png");
+    SDL_Texture* tSizeRes = IMG_LoadTexture(ren, "size_res.png");
+    SDL_Texture* tWait = IMG_LoadTexture(ren, "wait_btn.png");
+    SDL_Texture* tTRes = IMG_LoadTexture(ren, "timer_res.png");
+    SDL_Texture* tTSay = IMG_LoadTexture(ren, "timer_say.png");
+
     // NEW TEXTURES FOR LOOPS
     SDL_Texture* tRepStart = IMG_LoadTexture(ren, "repeat_start.png");
     SDL_Texture* tRepEnd = IMG_LoadTexture(ren, "repeat_end.png");
 
-    standardItems = { {MOVE,tMove}, {SAY,tSay}, {THINK,tThink}, {HIDE,tHide}, {SHOW,tShow}, {SET_UP,tUp}, {SET_DOWN,tDown}, {SET_LEFT,tL}, {SET_RIGHT,tR}, {GOTO_RANDOM,tRand}, {GOTO_MOUSE,tMouse}, {REPEAT_BEGIN,tRepStart}, {REPEAT_END,tRepEnd} };
+    standardItems = {
+            {MOVE,tMove}, {SAY,tSay}, {THINK,tThink}, {HIDE,tHide}, {SHOW,tShow},
+            {SET_UP,tUp}, {SET_DOWN,tDown}, {SET_LEFT,tL}, {SET_RIGHT,tR},
+            {GOTO_RANDOM,tRand}, {GOTO_MOUSE,tMouse}, {REPEAT_BEGIN,tRepStart}, {REPEAT_END,tRepEnd},
+            {SIZE_INC, tSizeInc}, {SIZE_DEC, tSizeDec}, {SIZE_RESET, tSizeRes},
+            {WAIT_SEC, tWait}, {TIMER_RESET, tTRes}, {TIMER_SAY, tTSay}
+    };
     penItems = { {PEN_DOWN,tPD}, {PEN_UP,tPU}, {ERASE_ALL,tER}, {STAMP,tST}, {SET_PEN_RED,tPR}, {SET_PEN_BLUE,tPB}, {PEN_SIZE_INC,tSU}, {PEN_SIZE_DEC,tSD} };
 
     sprite player; initSprite(player, 700, 400);
@@ -218,6 +253,8 @@ int main(int argc, char* argv[]) {
             while (pc < workspace.size() && isRunning) {
                 Block& b = workspace[pc];
 
+
+
                 // Check for forced quit during execution
                 SDL_Event execEv;
                 while (SDL_PollEvent(&execEv)) {
@@ -279,7 +316,46 @@ int main(int argc, char* argv[]) {
                     else if (b.action == SET_UP) player.dir = UP;
                     else if (b.action == SET_DOWN) player.dir = DOWN;
                     else if (b.action == SET_LEFT) player.dir = LEFT;
+                    else if (b.action == SIZE_INC) {
+                        player.scale += 0.2f; // Grow by 20%
+                        logAction("Looks Report: Sprite size increased. Scale: " + std::to_string(player.scale));
+                    }
+                    else if (b.action == SIZE_DEC) {
+                        if (player.scale > 0.3f) { // Prevent the sprite from becoming invisible/negative!
+                            player.scale -= 0.2f;
+                        }
+                        logAction("Looks Report: Sprite size decreased. Scale: " + std::to_string(player.scale));
+                    }
+                    else if (b.action == SIZE_RESET) {
+                        player.scale = 1.0f;
+                        logAction("Looks Report: Sprite size reset to 100%.");
+                    }
+
+// --- WAIT COMMAND ---
+                    else if (b.action == WAIT_SEC) {
+                        logAction("Waiting for 1 second...");
+                        renderAll(ren, player, workspace, nullptr, true, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
+                        SDL_Delay(1000);
+                    }
+
+// --- TIMER COMMANDS ---
+                    else if (b.action == TIMER_RESET) {
+                        startTime = SDL_GetTicks();
+                        logAction("Timer Reset to 0.");
+                    }
+                    else if (b.action == TIMER_SAY) {
+                        Uint32 elapsed = (SDL_GetTicks() - startTime) / 1000;
+                        std::string timeStr = "Time: " + std::to_string(elapsed) + "s";
+
+                        SDL_Color white = {255, 255, 255, 255};
+                        // Note: If you do this repeatedly, you should technically destroy the old texture to prevent a memory leak,
+                        // but for a quick school project, overwriting it is usually fine.
+                        player.activeBubble = renderText(timeStr, font, white, ren);
+                        logAction("Sprite reported the timer: " + timeStr);
+                    }
+
                     else if (b.action == SET_RIGHT) player.dir = RIGHT;
+
                     else if (b.action == GOTO_RANDOM) {
                         player.rect.x = (rand() % (SCREEN_W - DIV_X - 80)) + DIV_X;
                         player.rect.y = rand() % (SCREEN_H - 80);
@@ -318,6 +394,7 @@ int main(int argc, char* argv[]) {
                     else if (b.action == ERASE_ALL) {
                         SDL_SetRenderTarget(ren, canvas); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderTarget(ren, NULL);
                     }
+
                     renderAll(ren, player, workspace, nullptr, true, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
                     SDL_Delay(200);
                 }
@@ -332,5 +409,10 @@ int main(int argc, char* argv[]) {
         renderAll(ren, player, workspace, dragging, isRunning, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
         SDL_Delay(10);
     }
+
+
+    TTF_CloseFont(font);
+    TTF_Quit();
+
     return 0;
 }
