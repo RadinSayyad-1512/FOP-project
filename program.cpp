@@ -220,8 +220,10 @@ int main(int argc, char* argv[]) {
             std::vector<int> loopStack;
             std::vector<int> loopCounts;
 
-            while (pc < workspace.size() && isRunning) {
-                Block& b = workspace[pc];
+            while (pc < player.myProgram.size()) {
+                Block &b = player.myProgram[pc];
+
+                logAction("Run block from sprit memory");
 
                 // Check for forced quit during execution
                 SDL_Event execEv;
