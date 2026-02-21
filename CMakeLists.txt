@@ -8,5 +8,7 @@ add_executable(sdl2
         sprite.cpp
         block.h
         block.cpp
-        program.cpp)
+        program.cpp
+        Executor.h
+        Executor.cpp)
 target_link_libraries(${PROJECT_NAME} -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer)

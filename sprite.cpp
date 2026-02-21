@@ -19,6 +19,7 @@ void renderSprite(sprite &s, SDL_Renderer* ren) {
 
         SDL_SetRenderDrawColor(ren, 0, 0, 0, s.alpha);
         SDL_RenderDrawRect(ren, &s.rect);
+        SDL_RenderFillRect(ren, &s.rect);
     }
 
     // 2. Draw the Bubble (Always 255 Alpha)

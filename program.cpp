@@ -6,6 +6,7 @@
 #include <iostream>
 #include "Block.h"
 #include "Sprites.h"
+#include "Executor.h"
 
 const int SCREEN_W = 1200;
 const int SCREEN_H = 800;
@@ -247,13 +248,23 @@ int main(int argc, char* argv[]) {
                             loopCounts.back()--;
                             pc = loopStack.back(); // Jump back to REPEAT_BEGIN
                             logAction("Looping back. Remaining: " + std::to_string(loopCounts.back()));
-                        } else {
-                            loopStack.pop_back(); // Loop finished, destroy stack
-                            loopCounts.pop_back();
-                            logAction("Exited Loop.");
+                        }
+                        else if (b.action == TURN_RIGHT) {
+                            player.angle += 15; //Turn right 15 degress each time
+                            if (player.angle >= 360) player.angle -= 360;
+                        }
+                        else if (b.action == TURN_LEFT) {
+                            player.angle -= 15; //Turn left 15 degress each time
+                            if (player.angle < 0) player.angle += 360;
+                        }
+
+                            else {
+                                loopStack.pop_back(); // Loop finished, destroy stack
+                                loopCounts.pop_back();
+                                logAction("Exited Loop.");
+                            }
                         }
                     }
-                }
                     // --- MOVEMENT LOGIC ---
                 else if (b.action == MOVE) {
                     for(int step=0; step<10; step++) {

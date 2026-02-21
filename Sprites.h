@@ -14,6 +14,9 @@ struct sprite {
     Direction dir;
     int alpha;
 
+//to store rotation(0 to 360)
+    double angle;
+
     // Pen Extension State
     bool isPenDown;
     SDL_Color penColor;
