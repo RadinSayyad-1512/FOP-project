@@ -5,6 +5,9 @@
 
 enum Direction { UP, DOWN, LEFT, RIGHT };
 
+#include <vector>
+#include "block.h"
+
 struct sprite {
     SDL_Rect rect;
     SDL_Texture* activeBubble;
@@ -15,6 +18,7 @@ struct sprite {
     bool isPenDown;
     SDL_Color penColor;
     int penSize;
+    std::vector <Block> myProgram;
 };
 
 void initSprite(sprite &s, float x, float y);

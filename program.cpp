@@ -176,7 +176,12 @@ int main(int argc, char* argv[]) {
                         isValid = false;
                     }
 
-                    if (isValid) isRunning = true;
+                    if (isValid)
+                    {
+                        //Copy all block into the sprite
+                        player.myProgram = workspace;
+                        isRunning = true;
+                    }
                 }
 
                 if (SDL_PointInRect(&p, &extBtn)) { showingPenPalette = !showingPenPalette; currentPage = 0; }
