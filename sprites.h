@@ -1,23 +1,23 @@
-//
-// Created by parsa on 2/17/2026.
-//
+#ifndef SPRITES_H
+#define SPRITES_H
 
-#ifndef FOP_ENGINE_SPRITES_H
-#define FOP_ENGINE_SPRITES_H
-#include <string>
+#include <SDL2/SDL.h>
+
+enum Direction { UP, DOWN, LEFT, RIGHT };
+
 struct sprite {
-    float x = 0 , y = 0 ;
-    float w = 50 , h = 50 ;
-    int index ;
-    bool shown = false ;
-    float dy = 0 , dx = 0 ;
-    float directionDegree = 0 ;
-    std::string speechText , thinkText ;
-    bool validateMove ( float deltaX , float deltaY , int screenW , int screenH ) {
-        float nx = x + deltaX ;
-        float ny = y + deltaY ;
-        return nx >= 0 && nx <= screenW && ny >= 0 && ny <= screenH ;
-    }
+    SDL_Rect rect;
+    int dir;
+    int alpha;
+    SDL_Texture* texture;
+    SDL_Texture* activeBubble;
+    bool isPenDown;
+    SDL_Color penColor;
+    int penSize;
+    float scale = 1.0f;
 };
 
-#endif //FOP_ENGINE_SPRITES_H
+void initSprite(sprite &s, float x, float y);
+void renderSprite(sprite &s, SDL_Renderer* ren);
+
+#endif

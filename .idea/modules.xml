@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/FOP_engine.iml" filepath="$PROJECT_DIR$/.idea/FOP_engine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/sdl2.iml" filepath="$PROJECT_DIR$/.idea/sdl2.iml" />
     </modules>
   </component>
 </project>
