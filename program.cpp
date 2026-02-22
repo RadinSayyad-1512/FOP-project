@@ -7,6 +7,9 @@
 #include "Block.h"
 #include "Sprites.h"
 #include "Executor.h"
+#include "UserInterface.h"
+
+bool isRunning = false;
 
 const int SCREEN_W = 1200;
 const int SCREEN_H = 800;
@@ -57,6 +60,7 @@ void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& work
     SDL_RenderClear(ren);
     SDL_RenderCopy(ren, canvas, NULL, NULL);
 
+
     SDL_SetRenderDrawColor(ren, 60, 60, 60, 255);
     SDL_Rect sideTop = {0,0, DIV_X, DIV_Y}; SDL_RenderFillRect(ren, &sideTop);
     SDL_SetRenderDrawColor(ren, 40, 40, 40, 255);
@@ -68,6 +72,7 @@ void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& work
 
     drawTriangle(ren, 370, 365, false);
     drawTriangle(ren, 30, 365, true);
+    drawInfoBox(ren, player);
 
     auto& activePalette = showingPenPalette ? penItems : standardItems;
     for (int i=0; i < BLOCKS_PER_PAGE; i++) {
@@ -88,6 +93,8 @@ void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& work
     if (dragging) SDL_RenderCopy(ren, dragging->texture, NULL, &dragging->rect);
     SDL_RenderPresent(ren);
 }
+
+
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO); IMG_Init(IMG_INIT_PNG);
@@ -258,13 +265,13 @@ int main(int argc, char* argv[]) {
                             if (player.angle < 0) player.angle += 360;
                         }
 
-                            else {
-                                loopStack.pop_back(); // Loop finished, destroy stack
-                                loopCounts.pop_back();
-                                logAction("Exited Loop.");
-                            }
+                        else {
+                            loopStack.pop_back(); // Loop finished, destroy stack
+                            loopCounts.pop_back();
+                            logAction("Exited Loop.");
                         }
                     }
+                }
                     // --- MOVEMENT LOGIC ---
                 else if (b.action == MOVE) {
                     for(int step=0; step<10; step++) {

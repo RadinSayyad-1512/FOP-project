@@ -6,8 +6,22 @@
 #include <iostream>
 
 void executeProgram(sprite &s, SDL_Renderer* ren, SDL_Texture* page) {
- for (int i = 0; i < s.myProgram.size(); i++) {
-     Block& b = s.myProgram[i];
+    int repeatCount = 5;
+    int loopStartPC;
+ for (int pc = 0; pc < s.myProgram.size(); pc++) {
+     Block& b = s.myProgram[pc];
+
+     if (b.action == REPEAT_BEGIN) {
+         loopStartPC = pc;
+     }
+
+     else if (b.action == REPEAT_END) {
+         if (repeatCount > 1) {
+             repeatCount--;
+             pc = loopStartPC;
+             std:: cout << "Looping back... Remaining:" << repeatCount << std :: endl;
+         }
+     }
 
      if (b.action == MOVE) {
          if (s.dir == UP) s.rect.y -= 20;
@@ -21,7 +35,7 @@ void executeProgram(sprite &s, SDL_Renderer* ren, SDL_Texture* page) {
      }
      else if (b.action == TURN_RIGHT)
 
-         std:: cout << "Executing block: " << i << std :: endl;
+         std:: cout << "Executing block: " << pc << std :: endl;
 
      //Short pause for movement to be seen
      SDL_Delay(150);
