@@ -7,7 +7,7 @@
 #include "Block.h"
 #include "Sprites.h"
 #include <SDL2/SDL_ttf.h>
-
+#include <iomanip>
 
 SDL_Texture* renderText(std::string message, TTF_Font* font, SDL_Color color, SDL_Renderer* ren) {
     SDL_Surface* surf = TTF_RenderText_Blended(font, message.c_str(), color);
@@ -16,10 +16,7 @@ SDL_Texture* renderText(std::string message, TTF_Font* font, SDL_Color color, SD
     return tex;
 }
 
-
 Uint32 startTime = 0;
-
-
 
 const int SCREEN_W = 1200;
 const int SCREEN_H = 800;
@@ -34,6 +31,9 @@ int currentPage = 0;
 const int BLOCKS_PER_PAGE = 4;
 int scrollOffset = 0;
 bool showingPenPalette = false;
+
+std::vector<SDL_Texture*> backdrops;
+int activeBG = 0;
 
 void logAction(std::string message) {
     std::ofstream logFile("execution_log.txt", std::ios::app);
@@ -52,7 +52,6 @@ void drawTriangle(SDL_Renderer* ren, int x, int y, bool left) {
     SDL_RenderDrawLines(ren, points, 4);
 }
 
-// Circle Helper for the Pen
 void fillCircle(SDL_Renderer* ren, int cx, int cy, int radius) {
     for (int w = 0; w < radius * 2; w++) {
         for (int h = 0; h < radius * 2; h++) {
@@ -65,9 +64,18 @@ void fillCircle(SDL_Renderer* ren, int cx, int cy, int radius) {
     }
 }
 
-void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& workspace, Block* dragging, bool isRunning, SDL_Texture* tNew, SDL_Texture* tExt, SDL_Rect& resetBtn, SDL_Rect& startBtn, SDL_Rect& extBtn, SDL_Texture* canvas) {
+void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& workspace, Block* dragging, bool isRunning,
+               SDL_Texture* tNew, SDL_Texture* tExt, SDL_Texture* tStop, SDL_Rect& resetBtn, SDL_Rect& startBtn,
+               SDL_Rect& stopBtn, SDL_Rect& extBtn, SDL_Texture* canvas, const std::vector<SDL_Texture*>& backdrops,
+               int activeBG, SDL_Texture* tPausedMsg, bool showPausedMsg) {
+
     SDL_SetRenderDrawColor(ren, 20, 20, 20, 255);
     SDL_RenderClear(ren);
+
+    if (!backdrops.empty()) {
+        SDL_RenderCopy(ren, backdrops[activeBG], NULL, NULL);
+    }
+
     SDL_RenderCopy(ren, canvas, NULL, NULL);
 
     SDL_SetRenderDrawColor(ren, 60, 60, 60, 255);
@@ -76,8 +84,11 @@ void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& work
     SDL_Rect sideBot = {0, DIV_Y, DIV_X, DIV_Y}; SDL_RenderFillRect(ren, &sideBot);
 
     SDL_RenderCopy(ren, tNew, NULL, &resetBtn);
+
     SDL_SetRenderDrawColor(ren, isRunning ? 255 : 0, isRunning ? 0 : 255, 0, 255);
     SDL_RenderFillRect(ren, &startBtn);
+
+    SDL_RenderCopy(ren, tStop, NULL, &stopBtn);
 
     drawTriangle(ren, 370, 365, false);
     drawTriangle(ren, 30, 365, true);
@@ -99,12 +110,25 @@ void renderAll(SDL_Renderer* ren, sprite& player, const std::vector<Block>& work
 
     SDL_RenderCopy(ren, tExt, NULL, &extBtn);
     if (dragging) SDL_RenderCopy(ren, dragging->texture, NULL, &dragging->rect);
+
+    if (showPausedMsg && tPausedMsg) {
+        SDL_Rect msgRect = { DIV_X + 20, SCREEN_H - 40, 350, 30 };
+        SDL_RenderCopy(ren, tPausedMsg, NULL, &msgRect);
+    }
+
     SDL_RenderPresent(ren);
 }
 
 int main(int argc, char* argv[]) {
+
+//log reset problem fixed
+
+    std::ofstream logFile("execution_log.txt", std::ios::app);
+    logFile << "\n--- NEW SESSION STARTED ---" << std::endl;
+    logFile.close();
+
     SDL_Init(SDL_INIT_VIDEO); IMG_Init(IMG_INIT_PNG);
-    SDL_Window* win = SDL_CreateWindow("Mini Scratch v3 Final", 100, 100, SCREEN_W, SCREEN_H, 0);
+    SDL_Window* win = SDL_CreateWindow("FOP project", 100, 100, SCREEN_W, SCREEN_H, 0);
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
 
@@ -113,8 +137,6 @@ int main(int argc, char* argv[]) {
     }
     TTF_Font* font = TTF_OpenFont("arial.ttf", 24);
     startTime = SDL_GetTicks();
-
-
 
     SDL_Texture* canvas = SDL_CreateTexture(ren, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, SCREEN_W, SCREEN_H);
     SDL_SetTextureBlendMode(canvas, SDL_BLENDMODE_BLEND);
@@ -154,16 +176,25 @@ int main(int argc, char* argv[]) {
     SDL_Texture* tTRes = IMG_LoadTexture(ren, "timer_res.png");
     SDL_Texture* tTSay = IMG_LoadTexture(ren, "timer_say.png");
 
-    // NEW TEXTURES FOR LOOPS
     SDL_Texture* tRepStart = IMG_LoadTexture(ren, "repeat_start.png");
     SDL_Texture* tRepEnd = IMG_LoadTexture(ren, "repeat_end.png");
+    SDL_Texture* tNextBG = IMG_LoadTexture(ren, "next_bg_btn.png");
+    SDL_Texture* tNextCostume = IMG_LoadTexture(ren, "next_costume_btn.png");
+
+    SDL_Texture* tStop = IMG_LoadTexture(ren, "stop_btn.png");
+    SDL_Color yellow = {255, 255, 0, 255};
+    SDL_Texture* tPausedMsg = renderText("Paused: Press SPACE to run next block", font, yellow, ren);
+
+    backdrops.push_back(IMG_LoadTexture(ren, "void.png"));
+    backdrops.push_back(IMG_LoadTexture(ren, "beach.png"));
+    backdrops.push_back(IMG_LoadTexture(ren, "field.png"));
+
 
     standardItems = {
-            {MOVE,tMove}, {SAY,tSay}, {THINK,tThink}, {HIDE,tHide}, {SHOW,tShow},
-            {SET_UP,tUp}, {SET_DOWN,tDown}, {SET_LEFT,tL}, {SET_RIGHT,tR},
-            {GOTO_RANDOM,tRand}, {GOTO_MOUSE,tMouse}, {REPEAT_BEGIN,tRepStart}, {REPEAT_END,tRepEnd},
-            {SIZE_INC, tSizeInc}, {SIZE_DEC, tSizeDec}, {SIZE_RESET, tSizeRes},
-            {WAIT_SEC, tWait}, {TIMER_RESET, tTRes}, {TIMER_SAY, tTSay}
+            {MOVE, tMove}, {SET_UP, tUp}, {SET_DOWN, tDown}, {SET_LEFT, tL}, {SET_RIGHT, tR}, {GOTO_RANDOM, tRand}, {GOTO_MOUSE, tMouse},
+            {SAY, tSay}, {THINK, tThink}, {HIDE, tHide}, {SHOW, tShow}, {SIZE_INC, tSizeInc}, {SIZE_DEC, tSizeDec}, {SIZE_RESET, tSizeRes},
+            {NEXT_COSTUME, tNextCostume}, {NEXT_BG, tNextBG},
+            {WAIT_SEC, tWait}, {REPEAT_BEGIN, tRepStart}, {REPEAT_END, tRepEnd}, {TIMER_RESET, tTRes}, {TIMER_SAY, tTSay}
     };
     penItems = { {PEN_DOWN,tPD}, {PEN_UP,tPU}, {ERASE_ALL,tER}, {STAMP,tST}, {SET_PEN_RED,tPR}, {SET_PEN_BLUE,tPB}, {PEN_SIZE_INC,tSU}, {PEN_SIZE_DEC,tSD} };
 
@@ -171,65 +202,94 @@ int main(int argc, char* argv[]) {
     std::vector<Block> workspace;
     Block* dragging = nullptr;
 
-    SDL_Rect nextBtn={350,350,30,30}, prevBtn={20,350,30,30}, startBtn={550,20,50,50}, resetBtn={20,20,100,30}, extBtn={150,355,100,30};
+    SDL_Rect nextBtn={350,350,30,30}, prevBtn={20,350,30,30}, startBtn={550,20,50,50}, stopBtn={610,20,50,50}, resetBtn={20,20,100,30}, extBtn={150,355,100,30};
+
     bool isRunning = false, quit = false;
+    bool runNextBlock = false;
+    int pc = 0;
+    std::vector<int> loopStack;
+    std::vector<int> loopCounts;
+
     SDL_Event e;
+
+    player.costumes.push_back(IMG_LoadTexture(ren, "cat1.png"));
+    player.costumes.push_back(IMG_LoadTexture(ren, "cat2.png"));
 
     while (!quit) {
         int mx, my; SDL_GetMouseState(&mx, &my);
         auto& activePalette = showingPenPalette ? penItems : standardItems;
 
+        bool showPausedMsg = (!isRunning && pc > 0 && pc < workspace.size());
+
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) quit = true;
             if (e.type == SDL_MOUSEWHEEL && mx < DIV_X && my > DIV_Y) scrollOffset += e.wheel.y * 20;
 
-            if (e.type == SDL_MOUSEBUTTONDOWN && !isRunning) {
+            if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_SPACE && !isRunning && pc < workspace.size() && !workspace.empty()) {
+                    runNextBlock = true;
+                }
+            }
+
+            if (e.type == SDL_MOUSEBUTTONDOWN) {
                 SDL_Point p = {mx, my};
 
-                if (SDL_PointInRect(&p, &resetBtn)) {
-                    workspace.clear(); initSprite(player, 700, 400); scrollOffset = 0;
-                    SDL_SetRenderTarget(ren, canvas); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderTarget(ren, NULL);
+                if (SDL_PointInRect(&p, &stopBtn)) {
+                    if (isRunning) logAction("--- Execution Paused by User ---");
+                    isRunning = false;
                 }
 
-                if (SDL_PointInRect(&p, &startBtn)) {
-                    // --- PRE-PROCESSOR VALIDATION (ERROR HANDLING) ---
-                    int loopDepth = 0;
-                    bool isValid = true;
-                    for (size_t i = 0; i < workspace.size(); i++) {
-                        if (workspace[i].action == REPEAT_BEGIN) loopDepth++;
-                        else if (workspace[i].action == REPEAT_END) loopDepth--;
+                if (!isRunning) {
+                    if (SDL_PointInRect(&p, &resetBtn)) {
+                        workspace.clear(); initSprite(player, 700, 400); scrollOffset = 0;
+                        SDL_SetRenderTarget(ren, canvas); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderTarget(ren, NULL);
+                        pc = 0; loopStack.clear(); loopCounts.clear();
+                    }
 
-                        if (loopDepth < 0) { // Found an END before a BEGIN
-                            logAction("[ERROR] Validation Failed: Repeat End without Begin at index " + std::to_string(i));
-                            std::cout << "Syntax Error: Repeat End without Begin!" << std::endl;
-                            isValid = false; break;
+                    if (SDL_PointInRect(&p, &startBtn)) {
+                        if (pc > 0 && pc < workspace.size()) {
+                            isRunning = true;
+                            logAction("--- Execution Resumed ---");
+                        } else {
+                            int loopDepth = 0;
+                            bool isValid = true;
+                            for (size_t i = 0; i < workspace.size(); i++) {
+                                if (workspace[i].action == REPEAT_BEGIN) loopDepth++;
+                                else if (workspace[i].action == REPEAT_END) loopDepth--;
+
+                                if (loopDepth < 0) {
+                                    logAction("[ERROR] Validation Failed"); isValid = false; break;
+                                }
+                            }
+                            if (isValid && loopDepth > 0) isValid = false;
+
+                            if (isValid) {
+                                pc = 0;
+                                loopStack.clear();
+                                loopCounts.clear();
+                                isRunning = true;
+                                logAction("--- Start Execution ---");
+                            }
                         }
                     }
-                    if (isValid && loopDepth > 0) { // Missing an END
-                        logAction("[ERROR] Validation Failed: Missing Repeat End block.");
-                        std::cout << "Syntax Error: Missing Repeat End block!" << std::endl;
-                        isValid = false;
+
+                    if (SDL_PointInRect(&p, &extBtn)) { showingPenPalette = !showingPenPalette; currentPage = 0; }
+                    if (SDL_PointInRect(&p, &nextBtn) && (currentPage+1)*BLOCKS_PER_PAGE < activePalette.size()) currentPage++;
+                    if (SDL_PointInRect(&p, &prevBtn) && currentPage > 0) currentPage--;
+
+                    if (e.button.button == SDL_BUTTON_RIGHT) {
+                        for (size_t i = 0; i < workspace.size(); i++) {
+                            SDL_Rect r = {workspace[i].rect.x, workspace[i].rect.y + scrollOffset, workspace[i].rect.w, workspace[i].rect.h};
+                            if (SDL_PointInRect(&p, &r)) { workspace.erase(workspace.begin() + i); break; }
+                        }
                     }
 
-                    if (isValid) isRunning = true;
-                }
-
-                if (SDL_PointInRect(&p, &extBtn)) { showingPenPalette = !showingPenPalette; currentPage = 0; }
-                if (SDL_PointInRect(&p, &nextBtn) && (currentPage+1)*BLOCKS_PER_PAGE < activePalette.size()) currentPage++;
-                if (SDL_PointInRect(&p, &prevBtn) && currentPage > 0) currentPage--;
-
-                if (e.button.button == SDL_BUTTON_RIGHT) {
-                    for (size_t i = 0; i < workspace.size(); i++) {
-                        SDL_Rect r = {workspace[i].rect.x, workspace[i].rect.y + scrollOffset, workspace[i].rect.w, workspace[i].rect.h};
-                        if (SDL_PointInRect(&p, &r)) { workspace.erase(workspace.begin() + i); break; }
+                    for (int i=0; i < BLOCKS_PER_PAGE; i++) {
+                        int idx = currentPage * BLOCKS_PER_PAGE + i;
+                        if (idx >= activePalette.size()) break;
+                        SDL_Rect r = {100, 60 + (i*70), 200, 50};
+                        if (SDL_PointInRect(&p, &r)) dragging = new Block(createBlock(mx-100, my-25, 200, 50, activePalette[idx].type, activePalette[idx].tex));
                     }
-                }
-
-                for (int i=0; i < BLOCKS_PER_PAGE; i++) {
-                    int idx = currentPage * BLOCKS_PER_PAGE + i;
-                    if (idx >= activePalette.size()) break;
-                    SDL_Rect r = {100, 60 + (i*70), 200, 50};
-                    if (SDL_PointInRect(&p, &r)) dragging = new Block(createBlock(mx-100, my-25, 200, 50, activePalette[idx].type, activePalette[idx].tex));
                 }
             }
             if (e.type == SDL_MOUSEBUTTONUP && dragging) {
@@ -242,177 +302,170 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (isRunning) {
-            logAction("--- Start Execution ---");
+        if ((isRunning || runNextBlock) && pc < workspace.size()) {
 
-            // PROGRAM COUNTER & STACK (For Loops)
-            int pc = 0;
-            std::vector<int> loopStack;
-            std::vector<int> loopCounts;
+            Block& b = workspace[pc];
 
-            while (pc < workspace.size() && isRunning) {
-                Block& b = workspace[pc];
-
-
-
-                // Check for forced quit during execution
-                SDL_Event execEv;
-                while (SDL_PollEvent(&execEv)) {
-                    if (execEv.type == SDL_QUIT) { quit = true; isRunning = false; }
+            if (b.action == REPEAT_BEGIN) {
+                if (loopStack.empty() || loopStack.back() != pc) {
+                    loopStack.push_back(pc);
+                    loopCounts.push_back(4);
+                    logAction("Entered Loop. Iterations set to 4.");
                 }
-                if (!isRunning) break;
-
-                // --- LOOP LOGIC ---
-                if (b.action == REPEAT_BEGIN) {
-                    // Only initialize the loop if we aren't already returning to it
-                    if (loopStack.empty() || loopStack.back() != pc) {
-                        loopStack.push_back(pc);
-                        loopCounts.push_back(4); // We default to repeating 4 times!
-                        logAction("Entered Loop. Iterations set to 4.");
+            }
+            else if (b.action == REPEAT_END) {
+                if (!loopStack.empty()) {
+                    if (loopCounts.back() > 1) {
+                        loopCounts.back()--;
+                        pc = loopStack.back();
+                        logAction("Looping back. Remaining: " + std::to_string(loopCounts.back()));
+                    } else {
+                        loopStack.pop_back();
+                        loopCounts.pop_back();
+                        logAction("Exited Loop.");
                     }
                 }
-                else if (b.action == REPEAT_END) {
-                    if (!loopStack.empty()) {
-                        if (loopCounts.back() > 1) {
-                            loopCounts.back()--;
-                            pc = loopStack.back(); // Jump back to REPEAT_BEGIN
-                            logAction("Looping back. Remaining: " + std::to_string(loopCounts.back()));
-                        } else {
-                            loopStack.pop_back(); // Loop finished, destroy stack
-                            loopCounts.pop_back();
-                            logAction("Exited Loop.");
-                        }
+            }
+            else if (b.action == MOVE) {
+                for(int step = 0; step < 10; step++) {
+
+                    if (player.dir == RIGHT) player.rect.x += 3;
+                    else if (player.dir == LEFT)  player.rect.x -= 3;
+                    else if (player.dir == UP)    player.rect.y -= 3;
+                    else if (player.dir == DOWN)  player.rect.y += 3;
+
+                    if (player.rect.x < DIV_X) { player.rect.x = DIV_X; player.dir = RIGHT; }
+                    else if (player.rect.x > SCREEN_W-80) { player.rect.x = SCREEN_W-80; player.dir = LEFT; }
+                    else if (player.rect.y < 0) { player.rect.y = 0; player.dir = DOWN; }
+                    else if (player.rect.y > SCREEN_H-80) { player.rect.y = SCREEN_H-80; player.dir = UP; }
+
+                    if (player.isPenDown) {
+                        SDL_SetRenderTarget(ren, canvas);
+                        SDL_SetRenderDrawColor(ren, player.penColor.r, player.penColor.g, player.penColor.b, 255);
+                        fillCircle(ren, player.rect.x + 35, player.rect.y + 35, player.penSize);
+                        SDL_SetRenderTarget(ren, NULL);
+                    }
+                    renderAll(ren, player, workspace, nullptr, isRunning, tNew, tExt, tStop, resetBtn, startBtn, stopBtn, extBtn, canvas, backdrops, activeBG, tPausedMsg, showPausedMsg);
+                    SDL_Delay(50);
+                }
+            }
+            else {
+                if (b.action == SAY) { player.activeBubble = tHiBub; logAction("Looks Report: Sprite said 'Hi'"); }
+                else if (b.action == THINK) { player.activeBubble = tWhyBub; logAction("Looks Report: Sprite thought '...'"); }
+                else if (b.action == HIDE) { player.alpha = 0; logAction("Looks Report: Sprite hidden"); }
+                else if (b.action == SHOW) { player.alpha = 255; logAction("Looks Report: Sprite shown"); }
+                else if (b.action == SET_UP) player.dir = UP;
+                else if (b.action == SET_DOWN) player.dir = DOWN;
+                else if (b.action == SET_LEFT) player.dir = LEFT;
+                else if (b.action == NEXT_COSTUME) {
+
+                    if (!player.costumes.empty()) {
+                        player.activeCostume = (player.activeCostume + 1) % player.costumes.size();
+                        logAction("Looks Report: Switched to costume " + std::to_string(player.activeCostume));
                     }
                 }
-                    // --- MOVEMENT LOGIC ---
-                else if (b.action == MOVE) {
-                    for(int step=0; step<10; step++) {
-                        if (player.dir == RIGHT) player.rect.x += 3;
-                        else if (player.dir == LEFT)  player.rect.x -= 3;
-                        else if (player.dir == UP)    player.rect.y -= 3;
-                        else if (player.dir == DOWN)  player.rect.y += 3;
-
-                        if (player.rect.x < DIV_X) { player.rect.x = DIV_X; player.dir = RIGHT; }
-                        else if (player.rect.x > SCREEN_W-80) { player.rect.x = SCREEN_W-80; player.dir = LEFT; }
-                        else if (player.rect.y < 0) { player.rect.y = 0; player.dir = DOWN; }
-                        else if (player.rect.y > SCREEN_H-80) { player.rect.y = SCREEN_H-80; player.dir = UP; }
-
-                        if (player.isPenDown) {
-                            SDL_SetRenderTarget(ren, canvas);
-                            SDL_SetRenderDrawColor(ren, player.penColor.r, player.penColor.g, player.penColor.b, 255);
-                            fillCircle(ren, player.rect.x + 35, player.rect.y + 35, player.penSize);
-                            SDL_SetRenderTarget(ren, NULL);
-                        }
-                        renderAll(ren, player, workspace, nullptr, true, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
-                        SDL_Delay(50);
-                    }
+                else if (b.action == NEXT_BG) {
+                    activeBG = (activeBG + 1) % backdrops.size();
+                    logAction("Looks Report: Background changed to index " + std::to_string(activeBG));
                 }
-                    // --- OTHER ACTIONS ---
-                else {
-                    if (b.action == SAY) player.activeBubble = tHiBub;
-                    else if (b.action == THINK) player.activeBubble = tWhyBub;
-                    else if (b.action == HIDE) player.alpha = 0;
-                    else if (b.action == SHOW) player.alpha = 255;
-                    else if (b.action == SET_UP) player.dir = UP;
-                    else if (b.action == SET_DOWN) player.dir = DOWN;
-                    else if (b.action == SET_LEFT) player.dir = LEFT;
-                    else if (b.action == SIZE_INC) {
-                        player.scale += 0.2f; // Grow by 20%
-                        logAction("Looks Report: Sprite size increased. Scale: " + std::to_string(player.scale));
-                    }
-                    else if (b.action == SIZE_DEC) {
-                        if (player.scale > 0.3f) { // Prevent the sprite from becoming invisible/negative!
-                            player.scale -= 0.2f;
-                        }
-                        logAction("Looks Report: Sprite size decreased. Scale: " + std::to_string(player.scale));
-                    }
-                    else if (b.action == SIZE_RESET) {
-                        player.scale = 1.0f;
-                        logAction("Looks Report: Sprite size reset to 100%.");
-                    }
+                else if (b.action == SIZE_INC) {
+                    player.scale += 0.2f;
+                    logAction("Looks Report: Sprite size increased.");
+                }
+                else if (b.action == SIZE_DEC) {
+                    if (player.scale > 0.3f) player.scale -= 0.2f;
+                    logAction("Looks Report: Sprite size decreased.");
+                }
+                else if (b.action == SIZE_RESET) {
+                    player.scale = 1.0f;
+                    logAction("Looks Report: Sprite size reset.");
+                }
+                else if (b.action == WAIT_SEC) {
+                    logAction("Waiting for 1 second...");
+                    renderAll(ren, player, workspace, nullptr, isRunning, tNew, tExt, tStop, resetBtn, startBtn, stopBtn, extBtn, canvas, backdrops, activeBG, tPausedMsg, showPausedMsg);
+                    SDL_Delay(1000);
+                }
+                else if (b.action == TIMER_RESET) {
+                    startTime = SDL_GetTicks();
+                    logAction("Timer Reset.");
+                }
+                else if (b.action == TIMER_SAY) {
 
-// --- WAIT COMMAND ---
-                    else if (b.action == WAIT_SEC) {
-                        logAction("Waiting for 1 second...");
-                        renderAll(ren, player, workspace, nullptr, true, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
-                        SDL_Delay(1000);
-                    }
+                    float elapsed = (SDL_GetTicks() - startTime) / 1000.0f;
+                    std::stringstream ss;
+                    ss << std::fixed << std::setprecision(2) << elapsed << "s";
+                    std::string timeStr = "Time: " + ss.str();
 
-// --- TIMER COMMANDS ---
-                    else if (b.action == TIMER_RESET) {
-                        startTime = SDL_GetTicks();
-                        logAction("Timer Reset to 0.");
-                    }
-                    else if (b.action == TIMER_SAY) {
-                        Uint32 elapsed = (SDL_GetTicks() - startTime) / 1000;
-                        std::string timeStr = "Time: " + std::to_string(elapsed) + "s";
-
-                        SDL_Color white = {255, 255, 255, 255};
-                        // Note: If you do this repeatedly, you should technically destroy the old texture to prevent a memory leak,
-                        // but for a quick school project, overwriting it is usually fine.
-                        player.activeBubble = renderText(timeStr, font, white, ren);
-                        logAction("Sprite reported the timer: " + timeStr);
-                    }
-
-                    else if (b.action == SET_RIGHT) player.dir = RIGHT;
-
-                    else if (b.action == GOTO_RANDOM) {
-                        player.rect.x = (rand() % (SCREEN_W - DIV_X - 80)) + DIV_X;
-                        player.rect.y = rand() % (SCREEN_H - 80);
-                    }
-                    else if (b.action == GOTO_MOUSE) {
-                        bool clickedOnStage = false;
-                        logAction("Waiting for stage click...");
-                        while (!clickedOnStage) {
-                            SDL_Event clickEv;
-                            while (SDL_PollEvent(&clickEv)) {
-                                if (clickEv.type == SDL_QUIT) { quit = true; clickedOnStage = true; isRunning = false; }
-                                if (clickEv.type == SDL_MOUSEBUTTONDOWN) {
-                                    int cx, cy; SDL_GetMouseState(&cx, &cy);
-                                    if (cx > DIV_X) {
-                                        player.rect.x = cx - 40; player.rect.y = cy - 40;
-                                        if (player.rect.x > SCREEN_W - 80) player.rect.x = SCREEN_W - 80;
-                                        if (player.rect.y < 0) player.rect.y = 0;
-                                        if (player.rect.y > SCREEN_H - 80) player.rect.y = SCREEN_H - 80;
-                                        clickedOnStage = true;
-                                    }
+                    SDL_Color white = {255, 255, 255, 255};
+                    player.activeBubble = renderText(timeStr, font, white, ren);
+                }
+                else if (b.action == SET_RIGHT) player.dir = RIGHT;
+                else if (b.action == GOTO_RANDOM) {
+                    player.rect.x = (rand() % (SCREEN_W - DIV_X - 80)) + DIV_X;
+                    player.rect.y = rand() % (SCREEN_H - 80);
+                }
+                else if (b.action == GOTO_MOUSE) {
+                    bool clickedOnStage = false;
+                    while (!clickedOnStage && !quit) {
+                        SDL_Event clickEv;
+                        while (SDL_PollEvent(&clickEv)) {
+                            if (clickEv.type == SDL_QUIT) quit = true;
+                            if (clickEv.type == SDL_MOUSEBUTTONDOWN) {
+                                int cx, cy; SDL_GetMouseState(&cx, &cy);
+                                if (cx > DIV_X) {
+                                    player.rect.x = cx - 40; player.rect.y = cy - 40;
+                                    clickedOnStage = true;
                                 }
                             }
-                            renderAll(ren, player, workspace, nullptr, true, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
-                            SDL_Delay(10);
                         }
+                        renderAll(ren, player, workspace, nullptr, isRunning, tNew, tExt, tStop, resetBtn, startBtn, stopBtn, extBtn, canvas, backdrops, activeBG, tPausedMsg, showPausedMsg);
+                        SDL_Delay(10);
                     }
-                    else if (b.action == PEN_DOWN) player.isPenDown = true;
-                    else if (b.action == PEN_UP)   player.isPenDown = false;
-                    else if (b.action == SET_PEN_RED) player.penColor = {255, 0, 0, 255};
-                    else if (b.action == SET_PEN_BLUE) player.penColor = {0, 0, 255, 255};
-                    else if (b.action == PEN_SIZE_INC && player.penSize < 40) player.penSize += 4;
-                    else if (b.action == PEN_SIZE_DEC && player.penSize > 2) player.penSize -= 4;
-                    else if (b.action == STAMP) {
-                        SDL_SetRenderTarget(ren, canvas); renderSprite(player, ren); SDL_SetRenderTarget(ren, NULL);
-                    }
-                    else if (b.action == ERASE_ALL) {
-                        SDL_SetRenderTarget(ren, canvas); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderTarget(ren, NULL);
-                    }
-
-                    renderAll(ren, player, workspace, nullptr, true, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
-                    SDL_Delay(200);
+                }
+                else if (b.action == PEN_DOWN) player.isPenDown = true;
+                else if (b.action == PEN_UP)   player.isPenDown = false;
+                else if (b.action == SET_PEN_RED) player.penColor = {255, 0, 0, 255};
+                else if (b.action == SET_PEN_BLUE) player.penColor = {0, 0, 255, 255};
+                else if (b.action == PEN_SIZE_INC && player.penSize < 40) player.penSize += 4;
+                else if (b.action == PEN_SIZE_DEC && player.penSize > 2) player.penSize -= 4;
+                else if (b.action == STAMP) {
+                    SDL_SetRenderTarget(ren, canvas); renderSprite(player, ren); SDL_SetRenderTarget(ren, NULL);
+                }
+                else if (b.action == ERASE_ALL) {
+                    SDL_SetRenderTarget(ren, canvas); SDL_SetRenderDrawColor(ren, 0, 0, 0, 0); SDL_RenderClear(ren); SDL_SetRenderTarget(ren, NULL);
                 }
 
-                pc++; // Move to the next block
+                renderAll(ren, player, workspace, nullptr, isRunning, tNew, tExt, tStop, resetBtn, startBtn, stopBtn, extBtn, canvas, backdrops, activeBG, tPausedMsg, showPausedMsg);
+                SDL_Delay(200);
             }
-            isRunning = false;
-            logAction("--- End Execution ---");
+
+            pc++;
+            runNextBlock = false;
+
+            if (pc >= workspace.size()) {
+                isRunning = false;
+                pc = 0;
+                loopStack.clear();
+                loopCounts.clear();
+                logAction("--- End Execution ---");
+            }
         }
 
         if (dragging) { dragging->rect.x = mx-100; dragging->rect.y = my-25; }
-        renderAll(ren, player, workspace, dragging, isRunning, tNew, tExt, resetBtn, startBtn, extBtn, canvas);
+
+        renderAll(ren, player, workspace, dragging, isRunning, tNew, tExt, tStop, resetBtn, startBtn, stopBtn, extBtn, canvas, backdrops, activeBG, tPausedMsg, showPausedMsg);
         SDL_Delay(10);
     }
 
 
-    TTF_CloseFont(font);
+
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+
+
     TTF_Quit();
+    IMG_Quit();
+    SDL_Quit();
 
     return 0;
 }

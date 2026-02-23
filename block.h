@@ -11,7 +11,7 @@ enum ActionType {
     SET_PEN_RED, SET_PEN_BLUE, PEN_SIZE_INC, PEN_SIZE_DEC,
     REPEAT_BEGIN, REPEAT_END , SIZE_INC, SIZE_DEC, SIZE_RESET,
     WAIT_SEC,
-    TIMER_RESET, TIMER_SAY
+    TIMER_RESET, TIMER_SAY ,NEXT_BG , NEXT_COSTUME
 };
 
 
@@ -21,7 +21,7 @@ struct Block {
     SDL_Texture* texture;
 };
 
-// Helper to bundle data into a Block
+
 Block createBlock(int x, int y, int w, int h, ActionType action, SDL_Texture* tex);
 
 #endif
